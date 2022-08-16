@@ -8,6 +8,7 @@ import xml.etree.ElementTree as ET
 from typing import Tuple, List, Any
 from utils import Utilities
 from mp3_tag_utils import Mp3TagUtilities
+import re
 
 import eyed3
 
@@ -58,9 +59,26 @@ def build_segments(filename: str) -> Tuple[str, List[Tuple[str, str]]]:
             name, start_time = parse_marker(previous_chapter=base_chapter, marker=marker)
             base_chapter = name
             segments.append((name, start_time))
+        segments = combine_chapter_sections(segments=segments)
         return end_time, segments
     except Exception as e:
         print(e)
+
+def combine_chapter_sections(segments: List[Tuple[str,str]]) -> List[Tuple[str,str]]:
+    """Combine all markers for sections of the same chapter into single markers"""
+    i = 0
+    pattern = r"_\(([0-9]{2})?\:?[0-9]{2}\:[0-9]{2}\)"
+    while i < len(segments) - 1:
+        current = segments[i]
+        next = segments[i + 1]
+        current_str = re.sub(pattern, "", current[0])
+        next_str = re.sub(pattern, "", next[0].strip())
+        if next_str.startswith(current_str):
+            segments[i] = (current_str, next[1])
+            del segments[i + 1]
+        else:
+            i += 1
+    return segments
 
 
 def parse_marker(previous_chapter: str, marker: Any) -> Tuple[str, str]:
