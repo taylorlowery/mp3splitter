@@ -9,6 +9,39 @@ from utils import Utilities
 class Mp3TagUtilities:
 
     @staticmethod
+    def clean_metadata(filepath: str):
+        audio_file = eyed3.load(filepath)
+        album = audio_file.tag.album.replace("-", ":", 1)
+        artist = audio_file.tag.artist.replace("/", ";")
+        album_artist = audio_file.tag.album_artist
+        comment = "\n".join([comment for comment in audio_file.tag.comments])
+        encoded_by = audio_file.tag.encoded_by
+        copyright = audio_file.tag.copyright
+        genre = str(audio_file.tag.genre).replace("/", ":")
+        # language = audio_file.tag.language
+        publisher = audio_file.tag.publisher.replace("/", ":")
+        organization = audio_file.tag.publisher.replace("/", ":")
+        # subtitle = audio_file.tag.subtitle
+        track = audio_file.tag.track_num[0]
+
+        Mp3TagUtilities.set_audio_file_tag(
+            filename=filepath,
+            album=album,
+            artist=artist,
+            album_artist=album_artist,
+            comment=comment,
+            encoded_by=encoded_by,
+            copyright=copyright,
+            genre=genre,
+            # language=language,
+            publisher=publisher,
+            organization=organization,
+            # subtitle=subtitle,
+            track=track
+        )
+
+
+    @staticmethod
     def set_audio_file_tag(filename: str, **kwargs):
         audio_file = eyed3.load(filename)
         for k, v in kwargs.items():

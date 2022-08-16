@@ -178,12 +178,15 @@ def split_file(filename: str, segments: List[Tuple[str, str, str]]) -> List[str]
                 segs.append(segname)
 
                 # replace title tag with segment title
-                Mp3TagUtilities.set_audio_file_tag(segname, title=segment[0].replace("_00", ""))
+                Mp3TagUtilities.set_audio_file_tag(segname, title=segment[0].replace("_00", "").replace("_", " "))
+
+                Mp3TagUtilities.clean_metadata(segname)
 
                 print(f"Created {segname}")
         else:
             print(f"File {segname} already exists")
     return segs
+
 
 
 def process_single_mp3(filename: str) -> None:
