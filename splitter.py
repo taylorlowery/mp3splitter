@@ -74,7 +74,7 @@ def combine_chapter_sections(segments: List[Tuple[str,str]]) -> List[Tuple[str,s
         current_str = re.sub(pattern, "", current[0])
         next_str = re.sub(pattern, "", next[0].strip())
         if next_str.startswith(current_str):
-            segments[i] = (current_str, next[1])
+            # segments[i] = (current_str, next[1])
             del segments[i + 1]
         else:
             i += 1
