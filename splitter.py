@@ -12,6 +12,7 @@ import re
 
 import eyed3
 
+
 def get_markers_xml(filename: str, text_frames: Any) -> str:
     xml_file = filename.replace(".mp3", ".xml")
     xml_fixed_file = filename.replace(".mp3", "_fixed.xml")
@@ -64,21 +65,29 @@ def build_segments(filename: str) -> Tuple[str, List[Tuple[str, str]]]:
     except Exception as e:
         print(e)
 
-def combine_chapter_sections(segments: List[Tuple[str,str]]) -> List[Tuple[str,str]]:
+
+def combine_chapter_sections(segments: List[Tuple[str, str]]) -> List[Tuple[str, str]]:
     """Combine all markers for sections of the same chapter into single markers"""
     i = 0
-    pattern = r"_\(([0-9]{2})?\:?[0-9]{2}\:[0-9]{2}\)"
     while i < len(segments) - 1:
-        current = segments[i]
-        next = segments[i + 1]
-        current_str = re.sub(pattern, "", current[0])
-        next_str = re.sub(pattern, "", next[0].strip())
-        if next_str.startswith(current_str):
-            segments[i] = (current_str, next[1])
+        current = segments[i][0]
+        next = segments[i + 1][0]
+        if are_same_chapter(current, next):
+            # segments[i] = (current_str, next[1])
             del segments[i + 1]
         else:
             i += 1
     return segments
+
+
+def are_same_chapter(chapter_title1: str, chapter_title2: str) -> bool:
+    """Determines whether two strings (filenames or segments from xml) refer to the same chapter.
+    Assumes both strings contain a chapter title and a timestamp in the format (00:00:00)"""
+    # regex pattern to match timestamp (00:00:00) or (00:00)
+    pattern = r"_\(([0-9]{2})?\:?[0-9]{2}\:[0-9]{2}\)"
+    chapter_title1 = re.sub(pattern, "", chapter_title1)
+    chapter_title2 = re.sub(pattern, "", chapter_title2.strip())
+    return chapter_title2.startswith(chapter_title1)
 
 
 def parse_marker(previous_chapter: str, marker: Any) -> Tuple[str, str]:
@@ -141,15 +150,13 @@ def complete_segments(segments: List[Tuple[str, str]], final_time: str) -> List[
 
 def split_file(filename: str, segments: List[Tuple[str, str, str]]) -> List[str]:
     fn = pathlib.Path(filename)
-    # subdir = pathlib.Path(fn.stem)
     real_path = os.path.realpath(filename)
     dir_path = os.path.dirname(real_path)
-    # subdir = os.path.join(dir_path, subdir)
-    # os.mkdir(subdir)
     segs = []
     for index, segment in enumerate(segments):
-        segname = f"{dir_path}\\{fn.stem}_{index:03}_{Utilities.clean_filename(segment[0])}--split{fn.suffix}"
-        already_created = os.path.exists(segname)
+        title, start_timestamp, end_timestamp = segment
+        output_file_path = f"{dir_path}\\{fn.stem}_{index:03}_{Utilities.clean_filename(title)}--split{fn.suffix}"
+        already_created = os.path.exists(output_file_path)
 
         if not already_created:
             try:
@@ -159,10 +166,10 @@ def split_file(filename: str, segments: List[Tuple[str, str, str]]) -> List[str]
                            "-acodec",
                            "copy",
                            "-ss",
-                           f"{segment[1]}",
+                           f"{start_timestamp}",
                            "-to",
-                           f"{segment[2]}",
-                           f"{segname}",
+                           f"{end_timestamp}",
+                           f"{output_file_path}",
                            ]
                 is_win = 'Win' in platform.system()
                 # ffmpeg requires an output file and so it errors when it does not
@@ -172,48 +179,51 @@ def split_file(filename: str, segments: List[Tuple[str, str, str]]) -> List[str]
                                                  shell=is_win)
 
             except Exception as e:
-                if not os.path.exists(segname):
+                if not os.path.exists(output_file_path):
                     print(f"[ERROR] Unable to create file for {segment}: ", e)
-            if os.path.exists(segname):
-                segs.append(segname)
+            if os.path.exists(output_file_path):
+                segs.append(output_file_path)
 
                 # replace title tag with segment title
-                Mp3TagUtilities.set_audio_file_tag(segname, title=segment[0].replace("_00", "").replace("_", " "))
+                Mp3TagUtilities.set_audio_file_tag(output_file_path,
+                                                   title=segment[0].replace("_00", "").replace("_", " "))
 
-                Mp3TagUtilities.clean_metadata(segname)
+                Mp3TagUtilities.clean_metadata(output_file_path)
 
-                print(f"Created {segname}")
+                print(f"Created {output_file_path}")
         else:
-            print(f"File {segname} already exists")
+            print(f"File {output_file_path} already exists")
     return segs
 
 
-
-def process_single_mp3(filename: str) -> None:
+def process_single_mp3(filename: str) -> List[str]:
+    split_files = []
     try:
         print(f"Processing:{filename}")
-        allsegs = []
         end_time, segments = build_segments(filename)
         segments = complete_segments(segments, end_time)
         segs = split_file(filename, segments)
-        allsegs.extend(segs)
+        split_files.extend(segs)
 
         with open("copyit.sh", "w") as ff:
             print("#!/bin/sh", file=ff)
             print("mkdir /media/usb0/book", file=ff)
-            for seg in allsegs:
+            for seg in split_files:
                 print(f"cp {seg} /media/usb0/book/", file=ff)
     except Exception as e:
         print(f"[ERROR] error splitting {filename}: {e}")
+    return split_files
 
 
-def process_filepath(filename: str) -> None:
+def process_filepath(filename: str) -> List[str]:
+    split_files = []
     if os.path.isfile(filename):
-        process_single_mp3(filename)
+        split_files.extend(process_single_mp3(filename))
     elif os.path.isdir(filename):
         mp3s = Utilities.get_mp3_files_in_directory(filename)
         for mp3 in mp3s:
-            process_single_mp3(mp3)
+            split_files.extend(process_single_mp3(filename))
+
 
 
 if __name__ == "__main__":
