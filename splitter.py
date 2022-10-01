@@ -228,7 +228,7 @@ def process_filepath(filename: str) -> List[str]:
 def combine_chapters(split_files: List[str]) -> List[str]:
     """Combine split files from the same chapter into single files"""
     final_chapters = []
-    pattern = r"_\(([0-9]{2})?\:?[0-9]{2}\:[0-9]{2}\)_00--split.mp3"
+    pattern = r"(_\(00_00\))?_00--split.mp3"
     while len(split_files) > 0:
         chapter_files = []
         current = split_files.pop(0)
