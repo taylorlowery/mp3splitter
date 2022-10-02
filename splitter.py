@@ -80,12 +80,13 @@ def combine_chapter_sections(segments: List[Tuple[str, str]]) -> List[Tuple[str,
     return segments
 
 
-def are_same_chapter(chapter_title1: str, chapter_title2: str, pattern=r"_\(([0-9]{2})?\:?[0-9]{2}\:[0-9]{2}\)") -> bool:
+def are_same_chapter(chapter_title1: str, chapter_title2: str, patterns_to_strip=[r"_\(([0-9]{2})?\:?[0-9]{2}\:[0-9]{2}\)"]) -> bool:
     """Determines whether two strings (filenames or segments from xml) refer to the same chapter.
     Assumes both strings contain a chapter title and a timestamp in the format (00:00:00)"""
     # regex pattern to match timestamp (00:00:00) or (00:00)
-    chapter_title1 = re.sub(pattern, "", chapter_title1)
-    chapter_title2 = re.sub(pattern, "", chapter_title2.strip())
+    for pattern in patterns_to_strip:
+        chapter_title1 = re.sub(pattern, "", chapter_title1)
+        chapter_title2 = re.sub(pattern, "", chapter_title2.strip())
     return chapter_title2.startswith(chapter_title1)
 
 
@@ -228,17 +229,23 @@ def process_filepath(filename: str) -> List[str]:
 def combine_chapters(split_files: List[str]) -> List[str]:
     """Combine split files from the same chapter into single files"""
     final_chapters = []
-    pattern = r"(_\(00_00\))?_00--split.mp3"
+    pattern_suffix = r"(_\(00_00\))?(_00)?--split.mp3"
+    pattern_chapter_part = r"-Part([0-9]{2})?_([0-9]{3})?_"
+    patterns = [pattern_suffix, pattern_chapter_part]
     while len(split_files) > 0:
         chapter_files = []
         current = split_files.pop(0)
         chapter_files.append(current)
         for file in split_files:
-            if are_same_chapter(current, file, pattern=pattern):
+            if are_same_chapter(current, file, patterns_to_strip=patterns):
                 chapter_files.append(file)
                 split_files.remove(file)
         if len(chapter_files) > 1:
-            combined_files = Mp3TagUtilities.concat_mp3s(chapter_files, current)
+            filepath = re.sub(pattern_chapter_part, "_", current)
+            filepath = filepath.replace("_00", "").replace("'", "")
+            filename = os.path.basename(filepath)
+            title = re.sub(pattern_suffix, "", filename)
+            combined_files = Mp3TagUtilities.concat_mp3s(file_names=chapter_files, output_file_path=filepath, title=title)
             final_chapters.extend(combined_files)
         else:
             final_chapters.extend(chapter_files)

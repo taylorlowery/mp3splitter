@@ -50,13 +50,16 @@ class Mp3TagUtilities:
         audio_file.tag.save()
 
     @staticmethod
-    def concat_mp3s(file_names: List[str], output_file_name: str, title: str) -> str:
+    def concat_mp3s(file_names: List[str], output_file_path: str, title: str) -> str:
         directory = os.path.dirname(os.path.abspath(file_names[0]))
-        if os.path.dirname(output_file_name) != directory:
-            output_file_name = os.path.join(directory, output_file_name)
+        if os.path.dirname(output_file_path) != directory:
+            output_file_name = os.path.basename(output_file_path)
+            output_file_path = os.path.join(directory, output_file_name)
         tmp_list_file_path = os.path.join(directory, "tmp_files_list.txt")
+        edited_filenames = [os.path.abspath(file).replace("/", "\\").replace("'", "\'") for file in file_names]
         with open(tmp_list_file_path, "w") as f:
-            f.writelines([f"file '{os.path.abspath(file)}'\n" for file in file_names])
+            # f.writelines([f"file '{os.path.abspath(file)}'\n" for file in file_names])
+            f.writelines([f"file '{file}'\n" for file in edited_filenames])
 
         command = ["ffmpeg",
                    "-f",
@@ -67,12 +70,15 @@ class Mp3TagUtilities:
                    f"{tmp_list_file_path}",
                    "-c",
                    "copy",
-                   f"{output_file_name}"]
+                   f"{output_file_path}"]
 
         try:
             output = Utilities.execute_system_command(command=command)
-            Mp3TagUtilities.set_audio_file_tag(output_file_name, title=title)
+            Mp3TagUtilities.set_audio_file_tag(output_file_path, title=title)
+            os.remove(tmp_list_file_path)
+            for file in file_names:
+                if file != output_file_path:
+                    os.remove(file)
+            return output
         except Exception as e:
-            pass
-        os.remove(tmp_list_file_path)
-        return output
+            raise e
