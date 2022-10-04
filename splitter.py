@@ -245,7 +245,7 @@ def combine_chapters(split_files: List[str]) -> List[str]:
             filepath = filepath.replace("_00", "").replace("'", "")
             filename = os.path.basename(filepath)
             title = re.sub(pattern_suffix, "", filename)
-            combined_files = Mp3TagUtilities.concat_mp3s(file_names=chapter_files, output_file_path=filepath, title=title)
+            combined_files = Mp3TagUtilities.concat_mp3s(file_names=chapter_files, output_file_path=filepath)
             final_chapters.extend(combined_files)
         else:
             final_chapters.extend(chapter_files)
