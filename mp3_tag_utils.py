@@ -1,8 +1,11 @@
+import io
+
 import eyed3
 import os
 from typing import List, Dict, Any
 import platform
 import subprocess
+from PIL import  Image
 
 from utils import Utilities
 
@@ -62,6 +65,7 @@ class Mp3TagUtilities:
         # subtitle = audio_file.tag.subtitle
         tag_dict["title"] = audio_file.tag.title
         tag_dict["track"] = audio_file.tag.track_num[0]
+        tag[""]
         return tag_dict
 
     @staticmethod
@@ -108,3 +112,23 @@ class Mp3TagUtilities:
             return output
         except Exception as e:
             raise e
+
+
+    @staticmethod
+    def set_audio_file_image(audio_file_path: str) -> None:
+        """Opens an mp3, iterates through each image in its tags, and resizes it to be square based on the shortest side.
+        Does not take image distortion into account.
+        """
+        # get audio file image
+        audio_file = eyed3.load(audio_file_path)
+        for i, image_bytes in enumerate(audio_file.tag.images):
+            if image_bytes:
+                img = Image.open(io.BytesIO(image_bytes.image_data))
+                img_width, img_height = img.size
+                side = img_width if img_width < img_height else img_height
+                resized_img = img.resize((side, side))
+                output = io.BytesIO()
+                resized_img.save(output, format="JPEG")
+                r_i_bytes = output.getvalue()
+                audio_file.tag.images.set(i, r_i_bytes, "image/jpeg")
+        audio_file.tag.save()
