@@ -187,7 +187,7 @@ def split_file(filename: str, segments: List[Tuple[str, str, str]]) -> List[str]
                 # replace title tag with segment title
                 Mp3TagUtilities.set_audio_file_tag(output_file_path,
                                                    title=segment[0].replace("_00", "").replace("_", " "))
-
+                # clean file metadata
                 Mp3TagUtilities.clean_metadata(output_file_path)
 
                 print(f"Created {output_file_path}")

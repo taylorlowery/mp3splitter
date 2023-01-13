@@ -65,7 +65,6 @@ class Mp3TagUtilities:
         # subtitle = audio_file.tag.subtitle
         tag_dict["title"] = audio_file.tag.title
         tag_dict["track"] = audio_file.tag.track_num[0]
-        tag[""]
         return tag_dict
 
     @staticmethod
@@ -115,7 +114,7 @@ class Mp3TagUtilities:
 
 
     @staticmethod
-    def set_audio_file_image(audio_file_path: str) -> None:
+    def square_audio_file_image(audio_file_path: str) -> None:
         """Opens an mp3, iterates through each image in its tags, and resizes it to be square based on the shortest side.
         Does not take image distortion into account.
         """
