@@ -134,3 +134,4 @@ tests/
 Scripts/
 pyvenv.cfg
 copyit.sh
+/temp_files/

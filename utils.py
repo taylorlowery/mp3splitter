@@ -20,11 +20,11 @@ class Utilities:
         return f"{hour:02}:{min:02}:{sec:02}.{fraction:03}"
 
     @staticmethod
-    def get_mp3_files_in_directory(directory: str) -> List[str]:
+    def get_mp3_files_in_directory(directory: str, exclude_split_file: bool=True) -> List[str]:
         mp3_paths = []
         files = os.listdir(directory)
         for file in files:
-            if not file.endswith("--split.mp3") and file.endswith(".mp3"):
+            if file.endswith(".mp3") and ((not exclude_split_file) or (not file.endswith("--split.mp3"))):
                 mp3_paths.append(os.path.join(directory, file))
             else:
                 fullpath = os.path.join(directory, file)
