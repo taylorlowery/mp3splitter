@@ -190,6 +190,9 @@ def split_file(filename: str, segments: List[Tuple[str, str, str]]) -> List[str]
                 # clean file metadata
                 Mp3TagUtilities.clean_metadata(output_file_path)
 
+                # Square Image
+                Mp3TagUtilities.square_audio_file_image(output_file_path)
+
                 print(f"Created {output_file_path}")
         else:
             print(f"File {output_file_path} already exists")

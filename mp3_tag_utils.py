@@ -114,7 +114,7 @@ class Mp3TagUtilities:
 
 
     @staticmethod
-    def square_audio_file_image(audio_file_path: str) -> None:
+    def square_audio_file_image(audio_file_path: str, source_image_file: str = "") -> None:
         """Opens an mp3, iterates through each image in its tags, and resizes it to be square based on the shortest side.
         Does not take image distortion into account.
         """
@@ -122,7 +122,10 @@ class Mp3TagUtilities:
         audio_file = eyed3.load(audio_file_path)
         for i, image_bytes in enumerate(audio_file.tag.images):
             if image_bytes:
-                img = Image.open(io.BytesIO(image_bytes.image_data))
+                if source_image_file == "":
+                    img = Image.open(io.BytesIO(image_bytes.image_data))
+                else:
+                    img = Image.open(source_image_file)
                 img_width, img_height = img.size
                 side = img_width if img_width < img_height else img_height
                 resized_img = img.resize((side, side))
