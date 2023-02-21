@@ -1,5 +1,6 @@
 import io
 
+import PIL.Image
 import eyed3
 import os
 from typing import List, Dict, Any
@@ -97,13 +98,15 @@ class Mp3TagUtilities:
                    "0",
                    "-i",
                    f"{tmp_list_file_path}",
+                   "-map_metadata",
+                   "0",
                    "-c",
                    "copy",
                    f"{output_file_path}"]
 
         try:
             output = Utilities.execute_system_command(command=command)
-            Mp3TagUtilities.set_tag_from_another_file(source_filename=file_names[0], target_filename=output_file_path)
+            # Mp3TagUtilities.set_tag_from_another_file(source_filename=file_names[0], target_filename=output_file_path)
             os.remove(tmp_list_file_path)
             for file in file_names:
                 if file != output_file_path:
@@ -126,11 +129,17 @@ class Mp3TagUtilities:
                     img = Image.open(io.BytesIO(image_bytes.image_data))
                 else:
                     img = Image.open(source_image_file)
-                img_width, img_height = img.size
-                side = img_width if img_width < img_height else img_height
-                resized_img = img.resize((side, side))
-                output = io.BytesIO()
-                resized_img.save(output, format="JPEG")
-                r_i_bytes = output.getvalue()
-                audio_file.tag.images.set(i, r_i_bytes, "image/jpeg")
+                squared_image_bytes = Mp3TagUtilities.get_image_as_square_bytes(img)
+                audio_file.tag.images.set(i, squared_image_bytes, "image/jpeg")
         audio_file.tag.save()
+
+    @staticmethod
+    def get_image_as_square_bytes(img: PIL.Image.Image) -> bytes:
+        """Gets an Image and returns it as a squared byte array based on its shortest side"""
+        img_width, img_height = img.size
+        side = img_width if img_width < img_height else img_height
+        resized_img = img.resize((side, side))
+        output = io.BytesIO()
+        resized_img.save(output, format="JPEG")
+        square_image_bytes = output.getvalue()
+        return square_image_bytes

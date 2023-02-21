@@ -24,8 +24,10 @@ toml = "==0.10.2"
 tomli = "==2.0.1"
 virtualenv = "==20.15.1"
 virtualenv-clone = "==0.5.7"
+pytest-check = "*"
 
 [dev-packages]
+jupyter = "*"
 
 [requires]
 python_version = "3.10"

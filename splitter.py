@@ -39,19 +39,19 @@ def get_markers_xml(filename: str, text_frames: Any) -> str:
     return xml_text
 
 
-def build_segments(filename: str) -> Tuple[str, List[Tuple[str, str]]]:
+def build_segments(audio_file_path: str) -> Tuple[str, List[Tuple[str, str]]]:
     """Creates a list or segments representing chapter names with start and end times
         Args:
-            filename (str): Path to an mp3 file
+            audio_file_path (str): Path to an mp3 file
         Returns:
             Tuple(str, List(str, str)): a tuple representing end time of the file, and a list of tuples representing chapter names and thier start times
     """
     try:
-        audio = eyed3.load(filename)
+        audio = eyed3.load(audio_file_path)
         text_frames = audio.tag.user_text_frames
         end_time = Utilities.convert_time(audio.info.time_secs)
         segments = []
-        xml_text = get_markers_xml(filename=filename, text_frames=text_frames)
+        xml_text = get_markers_xml(filename=audio_file_path, text_frames=text_frames)
         markers = ET.fromstring(xml_text)
         base_chapter = "invalid I hope I never have chapters like this"
         chapter_section = 0
@@ -148,9 +148,9 @@ def complete_segments(segments: List[Tuple[str, str]], final_time: str) -> List[
     return new_segments
 
 
-def split_file(filename: str, segments: List[Tuple[str, str, str]]) -> List[str]:
-    fn = pathlib.Path(filename)
-    real_path = os.path.realpath(filename)
+def split_file(audio_file_path: str, segments: List[Tuple[str, str, str]]) -> List[str]:
+    fn = pathlib.Path(audio_file_path)
+    real_path = os.path.realpath(audio_file_path)
     dir_path = os.path.dirname(real_path)
     segs = []
     for index, segment in enumerate(segments):
@@ -162,7 +162,7 @@ def split_file(filename: str, segments: List[Tuple[str, str, str]]) -> List[str]
             try:
                 command = ["ffmpeg",
                            "-i",
-                           "" + filename + "",
+                           "" + audio_file_path + "",
                            "-acodec",
                            "copy",
                            "-ss",
@@ -243,6 +243,8 @@ def combine_chapters(split_files: List[str]) -> List[str]:
             if are_same_chapter(current, file, patterns_to_strip=patterns):
                 chapter_files.append(file)
                 split_files.remove(file)
+            else:
+                break
         if len(chapter_files) > 1:
             filepath = re.sub(pattern_chapter_part, "_", current)
             filepath = filepath.replace("_00", "").replace("'", "")
