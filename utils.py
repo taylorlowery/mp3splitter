@@ -2,6 +2,7 @@ import os
 from typing import List
 import platform
 import subprocess
+import pathlib
 
 class Utilities:
 
@@ -22,13 +23,13 @@ class Utilities:
     @staticmethod
     def get_mp3_files_in_directory(directory: str, exclude_split_file: bool=True) -> List[str]:
         mp3_paths = []
-        files = os.listdir(directory)
+        dir_path = pathlib.Path(directory)
+        files = dir_path.iterdir()
         for file in files:
-            if file.endswith(".mp3") and ((not exclude_split_file) or (not file.endswith("--split.mp3"))):
-                mp3_paths.append(os.path.join(directory, file))
+            if file.suffix == ".mp3" and ((not exclude_split_file) or (not str(file).endswith("--split.mp3"))):
+                mp3_paths.append(str(file.resolve()))
             else:
-                fullpath = os.path.join(directory, file)
-                if os.path.isdir(fullpath):
+                if pathlib.Path.is_dir(file):
                     mp3_paths.extend(get_mp3_files_in_directory(fullpath))
         return mp3_paths
 

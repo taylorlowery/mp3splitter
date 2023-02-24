@@ -9,6 +9,7 @@ from typing import Tuple, List, Any
 from utils import Utilities
 from mp3_tag_utils import Mp3TagUtilities
 import re
+import shutil
 
 import eyed3
 
@@ -217,17 +218,43 @@ def process_single_mp3(filename: str) -> List[str]:
         print(f"[ERROR] error splitting {filename}: {e}")
     return split_files
 
+def sanitize_filepath(filepath: str) -> str:
+    return filepath \
+        .replace('"', '') \
+        .replace("'", "") \
+        .replace("%", "") \
+        .replace(":", "")
 
 def process_filepath(filename: str) -> List[str]:
     split_files = []
+    all_mp3s: List[str] = []
     if os.path.isfile(filename):
-        split_files.extend(process_single_mp3(filename))
+        all_mp3s.append(filename)
     elif os.path.isdir(filename):
-        mp3s = Utilities.get_mp3_files_in_directory(filename)
-        for mp3 in mp3s:
-            split_files.extend(process_single_mp3(mp3))
+        dir_mp3s = Utilities.get_mp3_files_in_directory(filename)
+        for mp3 in dir_mp3s:
+            all_mp3s.append(mp3)
+
+    # generate dict of sanitized filepaths
+    file_dict = {}
+    for mp3 in all_mp3s:
+        path = pathlib.Path(mp3)
+        key = pathlib.Path.cwd() / "temp_files" / sanitize_filepath(path.name)
+        file_dict[str(key)] = mp3
+        shutil.copy2(mp3, key)
+
+    sanitized_mp3s = [key for key in file_dict]
+    for filepath in sanitized_mp3s:
+        split_files.extend(process_single_mp3(filepath))
+
     chapterized_output = combine_chapters(split_files=split_files)
-    return chapterized_output
+
+    output_ = []
+    for chapter in chapterized_output:
+        path = pathlib.Path(chapter)
+        path.replace(file_dict[chapter])
+        output_.append(chapter)
+    return output_
 
 def combine_chapters(split_files: List[str]) -> List[str]:
     """Combine split files from the same chapter into single files"""
@@ -245,15 +272,14 @@ def combine_chapters(split_files: List[str]) -> List[str]:
                 split_files.remove(file)
             else:
                 break
+        filepath = re.sub(pattern_chapter_part, "_", current)
+        filepath = filepath.replace("_00", "").replace("'", "")
         if len(chapter_files) > 1:
-            filepath = re.sub(pattern_chapter_part, "_", current)
-            filepath = filepath.replace("_00", "").replace("'", "")
-            filename = os.path.basename(filepath)
-            title = re.sub(pattern_suffix, "", filename)
-            combined_files = Mp3TagUtilities.concat_mp3s(file_names=chapter_files, output_file_path=filepath)
-            final_chapters.extend(combined_files)
+            ffmpeg_output = Mp3TagUtilities.concat_mp3s(file_names=chapter_files, output_file_path=filepath)
         else:
-            final_chapters.extend(chapter_files)
+            path = pathlib.Path(current)
+            path.replace(filepath)
+        final_chapters.append(filepath)
 
     return final_chapters
 

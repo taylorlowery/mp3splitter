@@ -26,7 +26,7 @@ class Mp3TagUtilities:
         publisher = audio_file.tag.publisher.replace("/", ":")
         organization = audio_file.tag.publisher.replace("/", ":")
         # subtitle = audio_file.tag.subtitle
-        track = audio_file.tag.track_num[0]
+        track = audio_file.tag.track_num
 
         Mp3TagUtilities.set_audio_file_tag(
             filename=filepath,
@@ -41,7 +41,7 @@ class Mp3TagUtilities:
             publisher=publisher,
             organization=organization,
             # subtitle=subtitle,
-            track=track
+            track_num=track
         )
 
     @staticmethod
@@ -106,7 +106,7 @@ class Mp3TagUtilities:
 
         try:
             output = Utilities.execute_system_command(command=command)
-            # Mp3TagUtilities.set_tag_from_another_file(source_filename=file_names[0], target_filename=output_file_path)
+            Mp3TagUtilities.set_tag_from_another_file(source_filename=file_names[0], target_filename=output_file_path)
             os.remove(tmp_list_file_path)
             for file in file_names:
                 if file != output_file_path:
