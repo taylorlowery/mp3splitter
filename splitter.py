@@ -230,30 +230,11 @@ def process_filepath(filename: str) -> List[str]:
         for mp3 in dir_mp3s:
             all_mp3s.append(mp3)
 
-    # generate dict of sanitized filepaths
-    # file_dict = {}
-    # for mp3 in all_mp3s:
-    #     path = pathlib.Path(mp3)
-    #     key = pathlib.Path.cwd() / "temp_files" / sanitize_filepath(path.name)
-    #     file_dict[str(key)] = mp3
-    #     shutil.copy2(mp3, key)
-    #
-    # sanitized_mp3s = [key for key in file_dict]
-    # for filepath in sanitized_mp3s:
-    #     split_files.extend(process_single_mp3(filepath))
-
     for mp3 in all_mp3s:
         split_files.extend(process_single_mp3(mp3))
 
     chapterized_output = combine_chapters(split_files=split_files)
     return chapterized_output
-
-    output_ = []
-    for chapter in chapterized_output:
-        path = pathlib.Path(chapter)
-        path.replace(file_dict[chapter])
-        output_.append(chapter)
-    return output_
 
 def combine_chapters(split_files: List[str]) -> List[str]:
     """Combine split files from the same chapter into single files"""
