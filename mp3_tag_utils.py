@@ -80,14 +80,19 @@ class Mp3TagUtilities:
 
     @staticmethod
     def concat_mp3s(file_names: List[str], output_file_path: str) -> str:
+
+        def _normalize_text(t):
+            return t \
+                .replace("'", "'\\''")
+
         directory = os.path.dirname(os.path.abspath(file_names[0]))
         if os.path.dirname(output_file_path) != directory:
             output_file_name = os.path.basename(output_file_path)
             output_file_path = os.path.join(directory, output_file_name)
         tmp_list_file_path = os.path.join(directory, "tmp_files_list.txt")
-        edited_filenames = [os.path.abspath(file).replace("/", "\\").replace("'", "\'") for file in file_names]
+        edited_filenames = [_normalize_text(file)for file in file_names]
+
         with open(tmp_list_file_path, "w") as f:
-            # f.writelines([f"file '{os.path.abspath(file)}'\n" for file in file_names])
             f.writelines([f"file '{file}'\n" for file in edited_filenames])
 
         command = ["ffmpeg",
@@ -97,12 +102,12 @@ class Mp3TagUtilities:
                    "-safe",
                    "0",
                    "-i",
-                   f"{tmp_list_file_path}",
+                   tmp_list_file_path,
                    "-map_metadata",
                    "0",
                    "-c",
                    "copy",
-                   f"{output_file_path}"]
+                   output_file_path]
 
         try:
             output = Utilities.execute_system_command(command=command)

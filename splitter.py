@@ -163,15 +163,16 @@ def split_file(audio_file_path: str, segments: List[Tuple[str, str, str]]) -> Li
             try:
                 command = ["ffmpeg",
                            "-i",
-                           "" + audio_file_path + "",
+                           audio_file_path,
                            "-acodec",
                            "copy",
                            "-ss",
-                           f"{start_timestamp}",
+                           start_timestamp,
                            "-to",
-                           f"{end_timestamp}",
-                           f"{output_file_path}",
+                           end_timestamp,
+                           output_file_path,
                            ]
+
                 is_win = 'Win' in platform.system()
                 # ffmpeg requires an output file and so it errors when it does not
                 # get one so we need to capture stderr, not stdout.
@@ -208,12 +209,6 @@ def process_single_mp3(filename: str) -> List[str]:
         segments = complete_segments(segments, end_time)
         segs = split_file(filename, segments)
         split_files.extend(segs)
-
-        with open("copyit.sh", "w") as ff:
-            print("#!/bin/sh", file=ff)
-            print("mkdir /media/usb0/book", file=ff)
-            for seg in split_files:
-                print(f"cp {seg} /media/usb0/book/", file=ff)
     except Exception as e:
         print(f"[ERROR] error splitting {filename}: {e}")
     return split_files
@@ -236,18 +231,22 @@ def process_filepath(filename: str) -> List[str]:
             all_mp3s.append(mp3)
 
     # generate dict of sanitized filepaths
-    file_dict = {}
-    for mp3 in all_mp3s:
-        path = pathlib.Path(mp3)
-        key = pathlib.Path.cwd() / "temp_files" / sanitize_filepath(path.name)
-        file_dict[str(key)] = mp3
-        shutil.copy2(mp3, key)
+    # file_dict = {}
+    # for mp3 in all_mp3s:
+    #     path = pathlib.Path(mp3)
+    #     key = pathlib.Path.cwd() / "temp_files" / sanitize_filepath(path.name)
+    #     file_dict[str(key)] = mp3
+    #     shutil.copy2(mp3, key)
+    #
+    # sanitized_mp3s = [key for key in file_dict]
+    # for filepath in sanitized_mp3s:
+    #     split_files.extend(process_single_mp3(filepath))
 
-    sanitized_mp3s = [key for key in file_dict]
-    for filepath in sanitized_mp3s:
-        split_files.extend(process_single_mp3(filepath))
+    for mp3 in all_mp3s:
+        split_files.extend(process_single_mp3(mp3))
 
     chapterized_output = combine_chapters(split_files=split_files)
+    return chapterized_output
 
     output_ = []
     for chapter in chapterized_output:
@@ -273,7 +272,7 @@ def combine_chapters(split_files: List[str]) -> List[str]:
             else:
                 break
         filepath = re.sub(pattern_chapter_part, "_", current)
-        filepath = filepath.replace("_00", "").replace("'", "")
+        filepath = filepath.replace("_00", "")
         if len(chapter_files) > 1:
             ffmpeg_output = Mp3TagUtilities.concat_mp3s(file_names=chapter_files, output_file_path=filepath)
         else:
