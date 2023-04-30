@@ -9,7 +9,7 @@ from typing import Tuple, List, Any
 from utils import Utilities
 from mp3_tag_utils import Mp3TagUtilities
 import re
-import shutil
+import typer
 
 import eyed3
 
@@ -149,14 +149,21 @@ def complete_segments(segments: List[Tuple[str, str]], final_time: str) -> List[
     return new_segments
 
 
-def split_file(audio_file_path: str, segments: List[Tuple[str, str, str]]) -> List[str]:
+def split_file(audio_file_path: str, segments: List[Tuple[str, str, str]], output_dir: str="") -> List[str]:
     fn = pathlib.Path(audio_file_path)
     real_path = os.path.realpath(audio_file_path)
     dir_path = os.path.dirname(real_path)
+    if output_dir == "":
+        output_dir = dir_path
+    else:
+        output_dir = os.path.realpath(output_dir)
+        dir_path = pathlib.Path(output_dir)
+        if not pathlib.Path.is_dir(dir_path):
+            pathlib.Path.mkdir(dir_path)
     segs = []
     for index, segment in enumerate(segments):
         title, start_timestamp, end_timestamp = segment
-        output_file_path = f"{dir_path}\\{fn.stem}_{index:03}_{Utilities.clean_filename(title)}--split{fn.suffix}"
+        output_file_path = f"{output_dir}\\{fn.stem}_{index:03}_{Utilities.clean_filename(title)}--split{fn.suffix}"
         already_created = os.path.exists(output_file_path)
 
         if not already_created:
@@ -201,13 +208,13 @@ def split_file(audio_file_path: str, segments: List[Tuple[str, str, str]]) -> Li
     return segs
 
 
-def process_single_mp3(filename: str) -> List[str]:
+def process_single_mp3(filename: str, output_dir: str = "") -> List[str]:
     split_files = []
     try:
         print(f"Processing:{filename}")
         end_time, segments = build_segments(filename)
         segments = complete_segments(segments, end_time)
-        segs = split_file(filename, segments)
+        segs = split_file(audio_file_path=filename, segments=segments, output_dir=output_dir)
         split_files.extend(segs)
     except Exception as e:
         print(f"[ERROR] error splitting {filename}: {e}")
@@ -220,18 +227,18 @@ def sanitize_filepath(filepath: str) -> str:
         .replace("%", "") \
         .replace(":", "")
 
-def process_filepath(filename: str) -> List[str]:
+def process_filepath(filepath: str, output_dir: str) -> List[str]:
     split_files = []
     all_mp3s: List[str] = []
-    if os.path.isfile(filename):
-        all_mp3s.append(filename)
-    elif os.path.isdir(filename):
-        dir_mp3s = Utilities.get_mp3_files_in_directory(filename)
+    if os.path.isfile(filepath):
+        all_mp3s.append(filepath)
+    elif os.path.isdir(filepath):
+        dir_mp3s = Utilities.get_mp3_files_in_directory(filepath)
         for mp3 in dir_mp3s:
             all_mp3s.append(mp3)
 
     for mp3 in all_mp3s:
-        split_files.extend(process_single_mp3(mp3))
+        split_files.extend(process_single_mp3(filename=mp3, output_dir=output_dir))
 
     chapterized_output = combine_chapters(split_files=split_files)
     return chapterized_output
@@ -263,12 +270,25 @@ def combine_chapters(split_files: List[str]) -> List[str]:
 
     return final_chapters
 
+
+def main(filepath: str, output_dir: str = ""):
+    """
+    Attempts to split mp3s into chapters based on mp3 tag data and output them in the specified directory
+    If FILEPATH is a valid path to a directory, it will attempt to split all mp3s in the directory.
+    Optional --output-dir specifies the directory where the split mp3s should be deposited. If omitted,
+    deposits the split files in their source directory
+    """
+    filepath = filepath.rstrip("\"'\\").lstrip("\"'")
+    output_dir = output_dir.rstrip("\"'").lstrip("\"'")
+    print(f"filepath: {filepath}")
+    print(f"output: {output_dir}")
+    chapterized_output = process_filepath(filepath=filepath, output_dir=output_dir)
+    if len(chapterized_output) > 0:
+        print("Created the following chapterized files:\n")
+        for file in chapterized_output:
+            print(f"\t{file}\n")
+    else:
+        print(f"Kick rocks, no files found at '{filepath}'")
+
 if __name__ == "__main__":
-    for filename in sys.argv[1:]:
-        chapterized_output = process_filepath(filename)
-        if len(chapterized_output) > 0:
-            print("Created the following chapterized files:\n")
-            for file in chapterized_output:
-                print(f"\t{file}\n")
-
-
+    typer.run(main)

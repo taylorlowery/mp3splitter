@@ -25,6 +25,7 @@ tomli = "==2.0.1"
 virtualenv = "==20.15.1"
 virtualenv-clone = "==0.5.7"
 pytest-check = "*"
+typer = {extras = ["all"], version = "*"}
 
 [dev-packages]
 jupyter = "*"
