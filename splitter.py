@@ -2,16 +2,16 @@
 import os
 import pathlib
 import platform
+import re
 import subprocess
-import sys
 import xml.etree.ElementTree as ET
 from typing import Tuple, List, Any
-from utils import Utilities
-from mp3_tag_utils import Mp3TagUtilities
-import re
-import typer
 
 import eyed3
+import typer
+
+from mp3_tag_utils import Mp3TagUtilities
+from utils import Utilities
 
 
 def get_markers_xml(filename: str, text_frames: Any) -> str:

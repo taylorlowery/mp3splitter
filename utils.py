@@ -1,8 +1,8 @@
-import os
-from typing import List
+import pathlib
 import platform
 import subprocess
-import pathlib
+from typing import List
+
 
 class Utilities:
 

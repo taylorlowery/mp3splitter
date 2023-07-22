@@ -1,14 +1,13 @@
 import io
+import os
+from typing import List, Dict, Any
 
 import PIL.Image
 import eyed3
-import os
-from typing import List, Dict, Any
-import platform
-import subprocess
-from PIL import  Image
+from PIL import Image
 
 from utils import Utilities
+
 
 class Mp3TagUtilities:
 
