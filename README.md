@@ -50,7 +50,7 @@ Remember you need to have `ffmpeg` installed for this tool to work!
 `splitter.py` will split all files presented on the command line.  I usually have a directory where the original MP3 files from overdrive are kept, so running it would look like:
 
 ```bash
-$ ./splitter.py book/*.mp3
+$ python splitter.py ".\path\to\file_or_directory_to_be_split" --output-dir "C:\path\to\output_directory"
 ```
 
 Note that this will create a directory in the current directory for each file found and split the contents of the given file into that directory.

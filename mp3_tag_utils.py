@@ -1,5 +1,6 @@
 import io
 
+import PIL.Image
 import eyed3
 import os
 from typing import List, Dict, Any
@@ -25,7 +26,7 @@ class Mp3TagUtilities:
         publisher = audio_file.tag.publisher.replace("/", ":")
         organization = audio_file.tag.publisher.replace("/", ":")
         # subtitle = audio_file.tag.subtitle
-        track = audio_file.tag.track_num[0]
+        track = audio_file.tag.track_num
 
         Mp3TagUtilities.set_audio_file_tag(
             filename=filepath,
@@ -40,7 +41,7 @@ class Mp3TagUtilities:
             publisher=publisher,
             organization=organization,
             # subtitle=subtitle,
-            track=track
+            track_num=track
         )
 
     @staticmethod
@@ -65,7 +66,6 @@ class Mp3TagUtilities:
         # subtitle = audio_file.tag.subtitle
         tag_dict["title"] = audio_file.tag.title
         tag_dict["track"] = audio_file.tag.track_num[0]
-        tag[""]
         return tag_dict
 
     @staticmethod
@@ -80,14 +80,19 @@ class Mp3TagUtilities:
 
     @staticmethod
     def concat_mp3s(file_names: List[str], output_file_path: str) -> str:
+
+        def _normalize_text(t):
+            return t \
+                .replace("'", "'\\''")
+
         directory = os.path.dirname(os.path.abspath(file_names[0]))
         if os.path.dirname(output_file_path) != directory:
             output_file_name = os.path.basename(output_file_path)
             output_file_path = os.path.join(directory, output_file_name)
         tmp_list_file_path = os.path.join(directory, "tmp_files_list.txt")
-        edited_filenames = [os.path.abspath(file).replace("/", "\\").replace("'", "\'") for file in file_names]
+        edited_filenames = [_normalize_text(file)for file in file_names]
+
         with open(tmp_list_file_path, "w") as f:
-            # f.writelines([f"file '{os.path.abspath(file)}'\n" for file in file_names])
             f.writelines([f"file '{file}'\n" for file in edited_filenames])
 
         command = ["ffmpeg",
@@ -97,10 +102,12 @@ class Mp3TagUtilities:
                    "-safe",
                    "0",
                    "-i",
-                   f"{tmp_list_file_path}",
+                   tmp_list_file_path,
+                   "-map_metadata",
+                   "0",
                    "-c",
                    "copy",
-                   f"{output_file_path}"]
+                   output_file_path]
 
         try:
             output = Utilities.execute_system_command(command=command)
@@ -115,7 +122,7 @@ class Mp3TagUtilities:
 
 
     @staticmethod
-    def set_audio_file_image(audio_file_path: str) -> None:
+    def square_audio_file_image(audio_file_path: str, source_image_file: str = "") -> None:
         """Opens an mp3, iterates through each image in its tags, and resizes it to be square based on the shortest side.
         Does not take image distortion into account.
         """
@@ -123,12 +130,21 @@ class Mp3TagUtilities:
         audio_file = eyed3.load(audio_file_path)
         for i, image_bytes in enumerate(audio_file.tag.images):
             if image_bytes:
-                img = Image.open(io.BytesIO(image_bytes.image_data))
-                img_width, img_height = img.size
-                side = img_width if img_width < img_height else img_height
-                resized_img = img.resize((side, side))
-                output = io.BytesIO()
-                resized_img.save(output, format="JPEG")
-                r_i_bytes = output.getvalue()
-                audio_file.tag.images.set(i, r_i_bytes, "image/jpeg")
+                if source_image_file == "":
+                    img = Image.open(io.BytesIO(image_bytes.image_data))
+                else:
+                    img = Image.open(source_image_file)
+                squared_image_bytes = Mp3TagUtilities.get_image_as_square_bytes(img)
+                audio_file.tag.images.set(i, squared_image_bytes, "image/jpeg")
         audio_file.tag.save()
+
+    @staticmethod
+    def get_image_as_square_bytes(img: PIL.Image.Image) -> bytes:
+        """Gets an Image and returns it as a squared byte array based on its shortest side"""
+        img_width, img_height = img.size
+        side = img_width if img_width < img_height else img_height
+        resized_img = img.resize((side, side))
+        output = io.BytesIO()
+        resized_img.save(output, format="JPEG")
+        square_image_bytes = output.getvalue()
+        return square_image_bytes
