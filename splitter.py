@@ -6,23 +6,24 @@ import re
 import subprocess
 import xml.etree.ElementTree as ET
 from typing import Tuple, List, Any
+from pathlib import Path
 
 import eyed3
 import typer
 
-from mp3_tag_utils import Mp3TagUtilities
-from utils import Utilities
+from .mp3_tag_utils import Mp3TagUtilities
+from .utils import Utilities
 
 
-def get_markers_xml(filename: str, text_frames: Any) -> str:
-    xml_file = filename.replace(".mp3", ".xml")
-    xml_fixed_file = filename.replace(".mp3", "_fixed.xml")
+def get_markers_xml(file_path: Path, text_frames: Any) -> str:
+    xml_file_path = file_path.with_suffix(".xml")
+    xml_fixed_file_path = xml_file_path.with_stem(f"{xml_file_path.stem}_fixed")
 
     xml_text = ""
 
     # check for filename_fixed.xml and use that to set markers
-    if os.path.exists(xml_fixed_file):
-        with open(xml_fixed_file, "r") as f_f:
+    if xml_fixed_file_path.exists():
+        with open(xml_fixed_file_path, "r") as f_f:
             xml_text = f_f.read()
         return xml_text
 
@@ -30,8 +31,8 @@ def get_markers_xml(filename: str, text_frames: Any) -> str:
         for frame in text_frames:
             xml_text = frame.text
             if "Markers" in xml_text:
-                if not os.path.exists(xml_file):
-                    with open(xml_file, "w") as f:
+                if not xml_file_path.exists():
+                    with open(xml_file_path, "w") as f:
                         f.write(xml_text)
                 break
     except Exception as e:
@@ -40,10 +41,10 @@ def get_markers_xml(filename: str, text_frames: Any) -> str:
     return xml_text
 
 
-def build_segments(audio_file_path: str) -> Tuple[str, List[Tuple[str, str]]]:
+def build_segments(audio_file_path: Path) -> Tuple[str, List[Tuple[str, str]]]:
     """Creates a list or segments representing chapter names with start and end times
         Args:
-            audio_file_path (str): Path to an mp3 file
+            audio_file_path (Path): Path to an mp3 file
         Returns:
             Tuple(str, List(str, str)): a tuple representing end time of the file, and a list of tuples representing chapter names and thier start times
     """
@@ -52,7 +53,7 @@ def build_segments(audio_file_path: str) -> Tuple[str, List[Tuple[str, str]]]:
         text_frames = audio.tag.user_text_frames
         end_time = Utilities.convert_time(audio.info.time_secs)
         segments = []
-        xml_text = get_markers_xml(filename=audio_file_path, text_frames=text_frames)
+        xml_text = get_markers_xml(file_path=audio_file_path, text_frames=text_frames)
         markers = ET.fromstring(xml_text)
         base_chapter = "invalid I hope I never have chapters like this"
         chapter_section = 0
@@ -149,28 +150,18 @@ def complete_segments(segments: List[Tuple[str, str]], final_time: str) -> List[
     return new_segments
 
 
-def split_file(audio_file_path: str, segments: List[Tuple[str, str, str]], output_dir: str="") -> List[str]:
-    fn = pathlib.Path(audio_file_path)
-    real_path = os.path.realpath(audio_file_path)
-    dir_path = os.path.dirname(real_path)
-    if output_dir == "":
-        output_dir = dir_path
-    else:
-        output_dir = os.path.realpath(output_dir)
-        dir_path = pathlib.Path(output_dir)
-        if not pathlib.Path.is_dir(dir_path):
-            pathlib.Path.mkdir(dir_path)
-    segs = []
+def split_file(audio_file_path: Path, segments: List[Tuple[str, str, str]], output_dir: Path) -> List[Path]:
+
+    segmented_audio_files = []
     for index, segment in enumerate(segments):
         title, start_timestamp, end_timestamp = segment
-        output_file_path = f"{output_dir}\\{fn.stem}_{index:03}_{Utilities.clean_filename(title)}--split{fn.suffix}"
-        already_created = os.path.exists(output_file_path)
+        output_file_path = output_dir / f"{audio_file_path.stem}_{index:03}_{Utilities.clean_filename(title)}--split{audio_file_path.suffix}"
 
-        if not already_created:
+        if not output_file_path.exists():
             try:
                 command = ["ffmpeg",
                            "-i",
-                           audio_file_path,
+                           str(audio_file_path),
                            "-acodec",
                            "copy",
                            "-ss",
@@ -188,10 +179,9 @@ def split_file(audio_file_path: str, segments: List[Tuple[str, str, str]], outpu
                                                  shell=is_win)
 
             except Exception as e:
-                if not os.path.exists(output_file_path):
+                if not output_file_path.exists():
                     print(f"[ERROR] Unable to create file for {segment}: ", e)
-            if os.path.exists(output_file_path):
-                segs.append(output_file_path)
+            if output_file_path.exists():
 
                 # replace title tag with segment title
                 Mp3TagUtilities.set_audio_file_tag(output_file_path,
@@ -202,22 +192,24 @@ def split_file(audio_file_path: str, segments: List[Tuple[str, str, str]], outpu
                 # Square Image
                 Mp3TagUtilities.square_audio_file_image(output_file_path)
 
+                # add audio file path to list of successfully created audio files
+                segmented_audio_files.append(output_file_path)
                 print(f"Created {output_file_path}")
         else:
             print(f"File {output_file_path} already exists")
-    return segs
+    return segmented_audio_files
 
 
-def process_single_mp3(filename: str, output_dir: str = "") -> List[str]:
+def process_single_mp3(file_path: Path, output_dir: Path = None) -> List[Path]:
     split_files = []
     try:
-        print(f"Processing:{filename}")
-        end_time, segments = build_segments(filename)
+        print(f"Processing {file_path}")
+        end_time, segments = build_segments(file_path)
         segments = complete_segments(segments, end_time)
-        segs = split_file(audio_file_path=filename, segments=segments, output_dir=output_dir)
-        split_files.extend(segs)
+        segmented_audio_files = split_file(audio_file_path=file_path, segments=segments, output_dir=output_dir)
+        split_files.extend(segmented_audio_files)
     except Exception as e:
-        print(f"[ERROR] error splitting {filename}: {e}")
+        print(f"[ERROR] error splitting {file_path}: {e}")
     return split_files
 
 def sanitize_filepath(filepath: str) -> str:
@@ -227,26 +219,19 @@ def sanitize_filepath(filepath: str) -> str:
         .replace("%", "") \
         .replace(":", "")
 
-def process_filepath(filepath: str, output_dir: str) -> List[str]:
-    split_files = []
-    all_mp3s: List[str] = []
-    if os.path.isfile(filepath):
-        all_mp3s.append(filepath)
-    elif os.path.isdir(filepath):
-        dir_mp3s = Utilities.get_mp3_files_in_directory(filepath)
-        for mp3 in dir_mp3s:
-            all_mp3s.append(mp3)
+def process_filepath(input_path: Path, output_dir: Path) -> List[Path]:
+    split_files: List[Path] = []
 
-    for mp3 in all_mp3s:
-        split_files.extend(process_single_mp3(filename=mp3, output_dir=output_dir))
+    for mp3 in input_path.rglob("*.mp3"):
+        split_files.extend(process_single_mp3(file_path=mp3, output_dir=output_dir))
 
-    chapterized_output = combine_chapters(split_files=split_files)
+    chapterized_output: List[Path] = combine_chapters(split_files=split_files)
     return chapterized_output
 
-def combine_chapters(split_files: List[str]) -> List[str]:
+def combine_chapters(split_files: List[Path]) -> List[Path]:
     """Combine split files from the same chapter into single files"""
     final_chapters = []
-    pattern_suffix = r"(_\(00_00\))?(_00)?--split.mp3"
+    pattern_suffix = r"(_\(00_00\))?(_00)?--split"
     pattern_chapter_part = r"-Part([0-9]{2})?_([0-9]{3})?_"
     patterns = [pattern_suffix, pattern_chapter_part]
     while len(split_files) > 0:
@@ -254,41 +239,53 @@ def combine_chapters(split_files: List[str]) -> List[str]:
         current = split_files.pop(0)
         chapter_files.append(current)
         for file in split_files:
-            if are_same_chapter(current, file, patterns_to_strip=patterns):
+            if are_same_chapter(current.name, file.name, patterns_to_strip=patterns):
                 chapter_files.append(file)
                 split_files.remove(file)
             else:
                 break
-        filepath = re.sub(pattern_chapter_part, "_", current)
-        filepath = filepath.replace("_00", "")
+        sanitized_chapter_name = re.sub(pattern_chapter_part, "_", current.name)
+        sanitized_chapter_name = sanitized_chapter_name.replace("_00", "")
+        sanitized_chapter_file_path = current.with_name(sanitized_chapter_name)
         if len(chapter_files) > 1:
-            ffmpeg_output = Mp3TagUtilities.concat_mp3s(file_names=chapter_files, output_file_path=filepath)
+            ffmpeg_output = Mp3TagUtilities.concat_mp3s(file_paths=chapter_files, output_file_path=sanitized_chapter_file_path)
         else:
-            path = pathlib.Path(current)
-            path.replace(filepath)
-        final_chapters.append(filepath)
+            current.replace(sanitized_chapter_file_path)
+        final_chapters.append(sanitized_chapter_file_path)
 
     return final_chapters
 
 
-def main(filepath: str, output_dir: str = ""):
+def main(input_path: str, output_dir: str = ""):
     """
     Attempts to split mp3s into chapters based on mp3 tag data and output them in the specified directory
     If FILEPATH is a valid path to a directory, it will attempt to split all mp3s in the directory.
     Optional --output-dir specifies the directory where the split mp3s should be deposited. If omitted,
     deposits the split files in their source directory
     """
-    filepath = filepath.rstrip("\"'\\").lstrip("\"'")
-    output_dir = output_dir.rstrip("\"'").lstrip("\"'")
-    print(f"filepath: {filepath}")
-    print(f"output: {output_dir}")
-    chapterized_output = process_filepath(filepath=filepath, output_dir=output_dir)
+    # filepath = filepath.rstrip("\"'\\").lstrip("\"'")
+    # output_dir = output_dir.rstrip("\"'").lstrip("\"'")
+    # print(f"filepath: {filepath}")
+    # print(f"output: {output_dir}")
+    input_path = Path(input_path).resolve()
+    if not input_path.exists():
+        raise IOError(f"{input_path} does not exist")
+    if output_dir == "":
+        if input_path.is_file():
+            output_dir = input_path.parents[0]
+        else:
+            output_dir = input_path
+    else:
+        output_dir = Path(output_dir).resolve()
+    if not output_dir.exists():
+        output_dir.mkdir()
+    chapterized_output = process_filepath(input_path=input_path, output_dir=output_dir)
     if len(chapterized_output) > 0:
         print("Created the following chapterized files:\n")
         for file in chapterized_output:
             print(f"\t{file}\n")
     else:
-        print(f"Kick rocks, no files found at '{filepath}'")
+        print(f"Kick rocks, no files found at '{input_path}'")
 
 if __name__ == "__main__":
     typer.run(main)

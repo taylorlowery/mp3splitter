@@ -128,8 +128,9 @@ dmypy.json
 # Pyre type checker
 .pyre/
 
-test_files/
-tests/
+artifacts/test_files
+artifacts/test_input_directory/*
+artifacts/test_output_directory/*
 .idea/
 Scripts/
 pyvenv.cfg

@@ -6,14 +6,16 @@ import PIL.Image
 import eyed3
 from PIL import Image
 
-from utils import Utilities
+from .utils import Utilities
+
+from pathlib import Path
 
 
 class Mp3TagUtilities:
 
     @staticmethod
-    def clean_metadata(filepath: str):
-        audio_file = eyed3.load(filepath)
+    def clean_metadata(audio_file_path: Path):
+        audio_file = eyed3.load(audio_file_path)
         album = audio_file.tag.album.replace("-", ":", 1)
         artist = audio_file.tag.artist.replace("/", ";")
         album_artist = audio_file.tag.album_artist
@@ -25,10 +27,10 @@ class Mp3TagUtilities:
         publisher = audio_file.tag.publisher.replace("/", ":")
         organization = audio_file.tag.publisher.replace("/", ":")
         # subtitle = audio_file.tag.subtitle
-        track = audio_file.tag.track_num
+        track = audio_file.tag.track_num[0]
 
         Mp3TagUtilities.set_audio_file_tag(
-            filename=filepath,
+            audio_file_path=audio_file_path,
             album=album,
             artist=artist,
             album_artist=album_artist,
@@ -46,7 +48,7 @@ class Mp3TagUtilities:
     @staticmethod
     def set_tag_from_another_file(source_filename: str, target_filename: str) -> None:
         source_tag_dict = Mp3TagUtilities.get_audio_file_tag_as_dict(source_filename)
-        Mp3TagUtilities.set_audio_file_tag(filename=target_filename, clear=True, **source_tag_dict)
+        Mp3TagUtilities.set_audio_file_tag(audio_file_path=target_filename, clear=True, **source_tag_dict)
 
     @staticmethod
     def get_audio_file_tag_as_dict(filename: str) -> Dict[str, Any]:
@@ -68,8 +70,8 @@ class Mp3TagUtilities:
         return tag_dict
 
     @staticmethod
-    def set_audio_file_tag(filename: str, clear: bool=False, **kwargs):
-        audio_file = eyed3.load(filename)
+    def set_audio_file_tag(audio_file_path: Path, clear: bool = False, **kwargs):
+        audio_file = eyed3.load(audio_file_path)
         if clear:
             audio_file.tag.clear()
         for k, v in kwargs.items():
@@ -78,18 +80,18 @@ class Mp3TagUtilities:
         audio_file.tag.save()
 
     @staticmethod
-    def concat_mp3s(file_names: List[str], output_file_path: str) -> str:
+    def concat_mp3s(file_paths: List[Path], output_file_path: Path) -> Path:
 
         def _normalize_text(t):
             return t \
                 .replace("'", "'\\''")
 
-        directory = os.path.dirname(os.path.abspath(file_names[0]))
+        directory = file_paths[0].parents[0]
         if os.path.dirname(output_file_path) != directory:
             output_file_name = os.path.basename(output_file_path)
             output_file_path = os.path.join(directory, output_file_name)
         tmp_list_file_path = os.path.join(directory, "tmp_files_list.txt")
-        edited_filenames = [_normalize_text(file)for file in file_names]
+        edited_filenames = [_normalize_text(file) for file in file_paths]
 
         with open(tmp_list_file_path, "w") as f:
             f.writelines([f"file '{file}'\n" for file in edited_filenames])
@@ -110,9 +112,9 @@ class Mp3TagUtilities:
 
         try:
             output = Utilities.execute_system_command(command=command)
-            Mp3TagUtilities.set_tag_from_another_file(source_filename=file_names[0], target_filename=output_file_path)
+            Mp3TagUtilities.set_tag_from_another_file(source_filename=file_paths[0], target_filename=output_file_path)
             os.remove(tmp_list_file_path)
-            for file in file_names:
+            for file in file_paths:
                 if file != output_file_path:
                     os.remove(file)
             return output
@@ -121,7 +123,7 @@ class Mp3TagUtilities:
 
 
     @staticmethod
-    def square_audio_file_image(audio_file_path: str, source_image_file: str = "") -> None:
+    def square_audio_file_image(audio_file_path: Path, source_image_file: str = "") -> None:
         """Opens an mp3, iterates through each image in its tags, and resizes it to be square based on the shortest side.
         Does not take image distortion into account.
         """
