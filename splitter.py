@@ -150,12 +150,16 @@ def complete_segments(segments: List[Tuple[str, str]], final_time: str) -> List[
     return new_segments
 
 
-def split_file(audio_file_path: Path, segments: List[Tuple[str, str, str]], output_dir: Path) -> List[Path]:
+def split_file(audio_file_path: Path, segments: List[Tuple[str, str, str]], input_path: Path, output_dir: Path) -> List[Path]:
 
     segmented_audio_files = []
     for index, segment in enumerate(segments):
         title, start_timestamp, end_timestamp = segment
-        output_file_path = output_dir / f"{audio_file_path.stem}_{index:03}_{Utilities.clean_filename(title)}--split{audio_file_path.suffix}"
+        relative_file_path = audio_file_path.relative_to(input_path)
+        relative_folders = relative_file_path.parents[0]
+        output_file_path = output_dir / relative_folders / f"{audio_file_path.stem}_{index:03}_{Utilities.clean_filename(title)}--split{audio_file_path.suffix}"
+        if not output_file_path.parents[0].exists():
+            output_file_path.parents[0].mkdir()
 
         if not output_file_path.exists():
             try:
@@ -200,13 +204,13 @@ def split_file(audio_file_path: Path, segments: List[Tuple[str, str, str]], outp
     return segmented_audio_files
 
 
-def process_single_mp3(file_path: Path, output_dir: Path = None) -> List[Path]:
+def process_single_mp3(file_path: Path, input_path: Path, output_dir: Path) -> List[Path]:
     split_files = []
     try:
         print(f"Processing {file_path}")
         end_time, segments = build_segments(file_path)
         segments = complete_segments(segments, end_time)
-        segmented_audio_files = split_file(audio_file_path=file_path, segments=segments, output_dir=output_dir)
+        segmented_audio_files = split_file(audio_file_path=file_path, segments=segments, input_path=input_path, output_dir=output_dir)
         split_files.extend(segmented_audio_files)
     except Exception as e:
         print(f"[ERROR] error splitting {file_path}: {e}")
@@ -223,7 +227,7 @@ def process_filepath(input_path: Path, output_dir: Path) -> List[Path]:
     split_files: List[Path] = []
 
     for mp3 in input_path.rglob("*.mp3"):
-        split_files.extend(process_single_mp3(file_path=mp3, output_dir=output_dir))
+        split_files.extend(process_single_mp3(file_path=mp3, input_path=input_path, output_dir=output_dir))
 
     chapterized_output: List[Path] = combine_chapters(split_files=split_files)
     return chapterized_output
